@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bin's ToH</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --border: #2a2a30;
+    --accent: #e8c547;
+    --accent2: #5ee7b0;
+    --danger: #f06060;
+    --text: #f0ede6;
+    --muted: #6e6e7a;
+    --disk1: #e8c547; --disk2: #5ee7b0; --disk3: #f06060;
+    --disk4: #8b7cf6; --disk5: #f0a060; --disk6: #60c0f0; --disk7: #f060c0;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+  }
+
+  h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+
+  /* ── top bar ── */
+  .topbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    text-align: center;
+    min-width: 90px;
+  }
+
+  .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .stat-val { font-family: 'Space Mono', monospace; font-size: 1.1rem; color: var(--accent); margin-top: 2px; }
+
+  /* ── controls ── */
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  select, button {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  select:hover, button:hover { border-color: var(--accent); }
+
+  button.primary { background: var(--accent); color: #0d0d0f; font-weight: 500; border-color: var(--accent); }
+  button.primary:hover { background: #f0d060; }
+  button.success { background: var(--accent2); color: #0d0d0f; border-color: var(--accent2); font-weight: 500; }
+  button.danger { border-color: var(--danger); color: var(--danger); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── game area ── */
+  .game-wrap {
+    width: 100%;
+    max-width: 700px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 16px 16px;
+    margin-bottom: 20px;
+  }
+
+  .pegs-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    gap: 8px;
+    height: 240px;
+    position: relative;
+  }
+
+  .peg-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .peg-col:hover .peg-rod { background: var(--accent); }
+
+  .peg-rod {
+    position: absolute;
+    bottom: 10px;
+    width: 5px;
+    height: 90%;
+    background: var(--border);
+    border-radius: 3px;
+    transition: background 0.15s;
+    z-index: 0;
+  }
+
+  .peg-base {
+    width: 80%;
+    height: 10px;
+    background: var(--border);
+    border-radius: 5px;
+    z-index: 1;
+  }
+
+  .disks-stack {
+    position: absolute;
+    bottom: 10px;
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 3px;
+    z-index: 2;
+  }
+
+  .disk {
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: rgba(0,0,0,0.7);
+    font-weight: 700;
+    transition: transform 0.12s, box-shadow 0.12s;
+    cursor: grab;
+  }
+
+  .disk.selected {
+    transform: translateY(-14px) scale(1.06);
+    box-shadow: 0 0 18px rgba(232,197,71,0.5);
+  }
+
+  .disk.hint-disk { outline: 2px dashed var(--accent2); outline-offset: 2px; }
+
+  .peg-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .peg-col.hint-target .peg-rod { background: var(--accent2); }
+
+  /* ── message ── */
+  #msg {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 20px;
+    margin-top: 10px;
+    font-style: italic;
+  }
+
+  #msg.good { color: var(--accent2); font-style: normal; font-weight: 500; }
+  #msg.bad  { color: var(--danger);  font-style: normal; }
+
+  /* ── leaderboard ── */
+  .lb-wrap {
+    width: 100%;
+    max-width: 700px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+
+  .lb-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  .lb-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row .rank { color: var(--muted); font-family: 'Space Mono', monospace; width: 28px; }
+  .lb-row .lb-name { flex: 1; }
+  .lb-row .lb-score { font-family: 'Space Mono', monospace; color: var(--accent2); }
+
+  .empty-lb { font-size: 13px; color: var(--muted); text-align: center; padding: 10px 0; }
+
+  /* ── win overlay ── */
+  #win-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #win-overlay.show { display: flex; }
+
+  .win-card {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 32px 40px;
+    text-align: center;
+    max-width: 340px;
+    width: 90%;
+  }
+
+  .win-card h2 { font-family: 'Space Mono', monospace; color: var(--accent); font-size: 1.5rem; margin-bottom: 8px; }
+  .win-card p { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .win-card .big { font-size: 1.8rem; color: var(--accent2); font-family: 'Space Mono', monospace; margin: 8px 0 20px; }
+  .win-card input {
+    width: 100%; padding: 10px 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 14px; margin-bottom: 12px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .win-card input:focus { outline: none; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>⟨ Bin's ToH ⟩</h1>
+<p class="subtitle">move all disks from A to C — click a peg to pick/place</p>
+
+<div class="topbar">
+  <div class="stat"><div class="stat-label">Moves</div><div class="stat-val" id="move-count">0</div></div>
+  <div class="stat"><div class="stat-label">Optimal</div><div class="stat-val" id="optimal">7</div></div>
+  <div class="stat"><div class="stat-label">Time</div><div class="stat-val" id="timer">0:00</div></div>
+  <div class="stat"><div class="stat-label">Disks</div>
+    <select id="disk-sel" style="margin-top:2px;padding:2px 6px;font-size:13px;">
+      <option value="3" selected>3</option><option value="4">4</option>
+      <option value="5">5</option><option value="6">6</option><option value="7">7</option>
+    </select>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="primary" id="reset-btn">New Game</button>
+  <button id="hint-btn">Hint</button>
+  <button class="success" id="solve-btn">Auto Solve</button>
+  <button class="danger" id="stop-btn" disabled>Stop</button>
+</div>
+
+<div class="game-wrap">
+  <div class="pegs-row" id="pegs-row">
+    <div class="peg-col" id="peg-0" onclick="pickOrPlace(0)">
+      <div class="peg-rod"></div>
+      <div class="disks-stack" id="stack-0"></div>
+      <div class="peg-base"></div>
+    </div>
+    <div class="peg-col" id="peg-1" onclick="pickOrPlace(1)">
+      <div class="peg-rod"></div>
+      <div class="disks-stack" id="stack-1"></div>
+      <div class="peg-base"></div>
+    </div>
+    <div class="peg-col" id="peg-2" onclick="pickOrPlace(2)">
+      <div class="peg-rod"></div>
+      <div class="disks-stack" id="stack-2"></div>
+      <div class="peg-base"></div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:space-around;margin-top:6px;">
+    <span class="peg-label">A</span>
+    <span class="peg-label">B</span>
+    <span class="peg-label">C</span>
+  </div>
+  <div id="msg">Pick a peg to start.</div>
+</div>
+
+<div class="lb-wrap">
+  <div class="lb-title">// LEADERBOARD</div>
+  <div id="lb-list"><div class="empty-lb">No scores yet — be the first!</div></div>
+</div>
+
+<div id="win-overlay">
+  <div class="win-card">
+    <h2>SOLVED!</h2>
+    <p>Save your score to the leaderboard</p>
+    <div class="big" id="win-stats"></div>
+    <input id="player-name" placeholder="Your name" maxlength="16" />
+    <button class="primary" style="width:100%;padding:10px;" onclick="saveScore()">Save Score</button>
+    <br><br>
+    <button onclick="closeWin()" style="width:100%;">Skip</button>
+  </div>
+</div>
+
+<script>
+// ── state ──
+const COLORS = ['--disk1','--disk2','--disk3','--disk4','--disk5','--disk6','--disk7'];
+let pegs, n, selected, moves, timerID, seconds, solving, solveTimer;
+
+function init() {
+  n = parseInt(document.getElementById('disk-sel').value);
+  pegs = [[], [], []];
+  for (let i = n; i >= 1; i--) pegs[0].push(i);
+  selected = -1; moves = 0; seconds = 0;
+  clearInterval(timerID); clearTimeout(solveTimer);
+  solving = false;
+  document.getElementById('stop-btn').disabled = true;
+  document.getElementById('solve-btn').disabled = false;
+  document.getElementById('hint-btn').disabled = false;
+  document.getElementById('move-count').textContent = 0;
+  document.getElementById('optimal').textContent = Math.pow(2, n) - 1;
+  document.getElementById('timer').textContent = '0:00';
+  timerID = setInterval(() => {
+    seconds++;
+    const m = Math.floor(seconds / 60), s = seconds % 60;
+    document.getElementById('timer').textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+  clearHighlights();
+  setMsg('Pick peg A to start.', '');
+  render();
+}
+
+function render() {
+  for (let p = 0; p < 3; p++) {
+    const el = document.getElementById('stack-' + p);
+    el.innerHTML = pegs[p].map(d => {
+      const w = 24 + Math.round((74 * (d - 1)) / (n - 1 || 1));
+      return `<div class="disk" style="width:${w}%;background:var(${COLORS[(d-1)%7]})">${d}</div>`;
+    }).join('');
+  }
+}
+
+function pickOrPlace(p) {
+  if (solving) return;
+  clearHighlights();
+  if (selected === -1) {
+    if (pegs[p].length === 0) { setMsg('Empty peg — pick one with disks.', 'bad'); return; }
+    selected = p;
+    const top = document.getElementById('stack-' + p).lastElementChild;
+    if (top) top.classList.add('selected');
+    setMsg('Now click where to move it.', '');
+  } else {
+    if (p === selected) { selected = -1; setMsg('Deselected.', ''); render(); return; }
+    const disk = pegs[selected][pegs[selected].length - 1];
+    const dest = pegs[p];
+    if (dest.length && dest[dest.length - 1] < disk) {
+      setMsg('Cannot place larger disk on smaller!', 'bad');
+      selected = -1; render(); return;
+    }
+    dest.push(pegs[selected].pop());
+    moves++;
+    document.getElementById('move-count').textContent = moves;
+    selected = -1;
+    render();
+    if (pegs[2].length === n) { clearInterval(timerID); setTimeout(showWin, 300); }
+    else setMsg('', '');
+  }
+}
+
+// ── hint ──
+function hint() {
+  if (solving) return;
+  clearHighlights();
+  const seq = [];
+  hanoi(n, 0, 2, 1, seq, [...pegs[0]], [...pegs[1]], [...pegs[2]]);
+  if (!seq.length) return;
+  const [f, t] = seq[0];
+  document.getElementById('peg-' + f).querySelector('.peg-rod').style.background = 'var(--accent2)';
+  document.getElementById('peg-' + t).classList.add('hint-target');
+  const top = document.getElementById('stack-' + f).lastElementChild;
+  if (top) top.classList.add('hint-disk');
+  setMsg('Hint: move top of ' + 'ABC'[f] + ' → ' + 'ABC'[t], 'good');
+}
+
+function hanoi(k, from, to, aux, out, a, b, c) {
+  const ps = [a, b, c];
+  if (k === 0) return;
+  hanoi(k - 1, from, aux, to, out, a, b, c);
+  const top = ps[from][ps[from].length - 1];
+  out.push([from, to]);
+  ps[to].push(ps[from].pop());
+  hanoi(k - 1, aux, to, from, out, a, b, c);
+}
+
+// ── auto solve ──
+function autoSolve() {
+  solving = true;
+  document.getElementById('stop-btn').disabled = false;
+  document.getElementById('solve-btn').disabled = true;
+  document.getElementById('hint-btn').disabled = true;
+  const seq = [];
+  (function h(k, f, t, a) {
+    if (!k) return;
+    h(k - 1, f, a, t);
+    seq.push([f, t]);
+    h(k - 1, a, t, f);
+  })(n, 0, 2, 1);
+  let i = 0;
+  const speed = () => Math.max(60, 500 - n * 40);
+  function step() {
+    if (!solving || i >= seq.length) { solving = false; return; }
+    const [f, t] = seq[i++];
+    pegs[t].push(pegs[f].pop());
+    moves++; document.getElementById('move-count').textContent = moves;
+    render();
+    setMsg('Moving: ' + 'ABC'[f] + ' → ' + 'ABC'[t], '');
+    if (pegs[2].length === n) { clearInterval(timerID); setTimeout(showWin, 400); return; }
+    solveTimer = setTimeout(step, speed());
+  }
+  step();
+}
+
+function stopSolve() {
+  solving = false;
+  clearTimeout(solveTimer);
+  document.getElementById('stop-btn').disabled = true;
+  document.getElementById('solve-btn').disabled = false;
+  document.getElementById('hint-btn').disabled = false;
+  setMsg('Auto-solve stopped.', 'bad');
+}
+
+// ── helpers ──
+function clearHighlights() {
+  for (let p = 0; p < 3; p++) {
+    document.getElementById('peg-' + p).classList.remove('hint-target');
+    document.getElementById('peg-' + p).querySelector('.peg-rod').style.background = '';
+  }
+  document.querySelectorAll('.disk').forEach(d => d.classList.remove('hint-disk', 'selected'));
+}
+
+function setMsg(txt, cls) {
+  const el = document.getElementById('msg');
+  el.textContent = txt;
+  el.className = cls || '';
+}
+
+// ── win ──
+function showWin() {
+  const m = Math.floor(seconds / 60), s = seconds % 60;
+  document.getElementById('win-stats').textContent =
+    moves + ' moves · ' + m + ':' + String(s).padStart(2,'0');
+  document.getElementById('win-overlay').classList.add('show');
+}
+
+function closeWin() {
+  document.getElementById('win-overlay').classList.remove('show');
+}
+
+// ── leaderboard (localStorage) ──
+function saveScore() {
+  const name = document.getElementById('player-name').value.trim() || 'Anonymous';
+  const entry = { name, moves, time: seconds, disks: n, date: new Date().toLocaleDateString() };
+  const lb = JSON.parse(localStorage.getItem('hanoi_lb') || '[]');
+  lb.push(entry);
+  lb.sort((a, b) => a.disks !== b.disks ? b.disks - a.disks : a.moves - b.moves || a.time - b.time);
+  localStorage.setItem('hanoi_lb', JSON.stringify(lb.slice(0, 10)));
+  closeWin();
+  renderLB();
+}
+
+function renderLB() {
+  const lb = JSON.parse(localStorage.getItem('hanoi_lb') || '[]');
+  const el = document.getElementById('lb-list');
+  if (!lb.length) { el.innerHTML = '<div class="empty-lb">No scores yet — be the first!</div>'; return; }
+  el.innerHTML = lb.map((e, i) => {
+    const m = Math.floor(e.time / 60), s = e.time % 60;
+    return `<div class="lb-row">
+      <span class="rank">${i+1}.</span>
+      <span class="lb-name">${e.name} <span style="color:var(--muted);font-size:11px;">(${e.disks} disks)</span></span>
+      <span class="lb-score">${e.moves}mv · ${m}:${String(s).padStart(2,'0')}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── events ──
+document.getElementById('reset-btn').addEventListener('click', init);
+document.getElementById('hint-btn').addEventListener('click', hint);
+document.getElementById('solve-btn').addEventListener('click', autoSolve);
+document.getElementById('stop-btn').addEventListener('click', stopSolve);
+document.getElementById('disk-sel').addEventListener('change', init);
+
+init();
+renderLB();
+</script>
+</body>
+</html>
